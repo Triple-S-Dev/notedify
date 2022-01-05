@@ -1,8 +1,12 @@
 // Back end services with Express, Mongo DB, and Graph QL
 const { ApolloServer, gql } = require('apollo-server-express');
 const express = require('express');
+require('dotenv').config();
+const db = require('./db');
 const app = express();
 const port = process.env.PORT || 4000;
+const DB_HOST = process.env.DB_HOST;
+const models = require('./models');
 
 // Data
 let notes = [
@@ -32,24 +36,26 @@ const typeDefs = gql`
 // Provide resolver functions for our schema fields
 const resolvers = {
   Query: {
-    notes: () => notes,
-    note: (parent, args) => {
-      return notes.find(note => note.id === args.id);
+    notes: async () => {
+      return await models.Note.find();
+    },
+    note: async (parent, args) => {
+      return await models.Note.findById(args.id);
     }
   },
 
   Mutation: {
-    newNote: (parent, args) => {
-      let noteValue = {
-        id: String(notes.length + 1),
+    newNote: async (parent, args) => {
+      return await models.Note.create({
         content: args.content,
         author: 'Adam Scott'
-      };
-      notes.push(noteValue);
-      return noteValue;
+      });
     }
   }
 };
+
+// Connect To Database
+db.connect(DB_HOST);
 
 const server = new ApolloServer({ typeDefs, resolvers });
 
