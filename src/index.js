@@ -1,67 +1,53 @@
 // Back end services with Express, Mongo DB, and Graph QL
-const { ApolloServer, gql } = require('apollo-server-express');
 const express = require('express');
+const { ApolloServer } = require('apollo-server-express');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
+
+// Local Module Imports
 const db = require('./db');
-const app = express();
+const models = require('./models');
+const typeDefs = require('./schema');
+const resolvers = require('./resolvers');
+
+// Run our server on a port specified in our .env file or port 4000
 const port = process.env.PORT || 4000;
 const DB_HOST = process.env.DB_HOST;
-const models = require('./models');
 
-// Data
-let notes = [
-  { id: '1', content: 'This is a note', author: 'Adam Scott' },
-  { id: '2', content: 'This is another note', author: 'Harvey Elliot' },
-  { id: '3', content: 'Yet, This is another note!', author: 'Harry Potter' }
-];
+const app = express();
+// Connect To Database
+db.connect(DB_HOST);
 
-// Construct a schema, using GraphQL schema language
-const typeDefs = gql`
-  type Note {
-    id: ID!
-    content: String!
-    author: String!
-  }
-
-  type Mutation {
-    newNote(content: String!): Note!
-  }
-
-  type Query {
-    notes: [Note!]!
-    note(id: ID!): Note!
-  }
-`;
-
-// Provide resolver functions for our schema fields
-const resolvers = {
-  Query: {
-    notes: async () => {
-      return await models.Note.find();
-    },
-    note: async (parent, args) => {
-      return await models.Note.findById(args.id);
-    }
-  },
-
-  Mutation: {
-    newNote: async (parent, args) => {
-      return await models.Note.create({
-        content: args.content,
-        author: 'Adam Scott'
-      });
+const getUser = token => {
+  if (token) {
+    try {
+      // return the user information from the token
+      return jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      // if there's a problem with the token, throw an error
+      throw new Error('Session invalid');
     }
   }
 };
 
-// Connect To Database
-db.connect(DB_HOST);
+// Apollo server setup
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  context: ({ req }) => {
+    // get the user token from the headers
+    const token = req.headers.authorization;
+    // try to retrieve a user with the token
+    const user = getUser(token);
+    // for now, lets log the user to the console"
+    console.log(user);
+    // Add the database models to the context
+    return { models, user };
+  }
+});
 
-const server = new ApolloServer({ typeDefs, resolvers });
-
+// Apply the Apollo GraphQL middleware and set the path to /api
 server.applyMiddleware({ app, path: '/api' });
-
-// app.get('/', (req, res) => res.send('Hello Server!!!'));
 
 app.listen({ port }, () =>
   console.log(
