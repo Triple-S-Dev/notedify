@@ -1,2 +1,2 @@
-# notedify-backend
-Built with Mongo DB, Express and Graph QL
+# Modern Backend Services Template
+Built with Node JS, Mongo DB, Express and Graph QL.
